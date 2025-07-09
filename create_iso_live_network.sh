@@ -9,14 +9,20 @@ if [ -z "$1" ]
     #export XDG_CONFIG_HOME=$(pwd)/..
     #export HOME=$(pwd)/..
     export ARCH="aarch64"
+    export OPENSHIFT_INSTALL_RELEASE_IMAGE_OVERRIDE=quay.io/openshift-release-dev/ocp-release:4.18.15-aarch64
+
     rm -rf generated/install-${1} || true
     rm -rf rhcos-live.iso
     cp ../rhcos-generic-arm.iso ./rhcos-live.iso
     mkdir -p generated/install-${1}
     cp -r ../config-files/${1}/* generated/install-${1}
-    openshift-install-fips --dir generated/install-${1} create single-node-ignition-config
+    openshift-install --dir generated/install-${1} create single-node-ignition-config
     podman run --pull=always --privileged --rm \
         -v /dev:/dev -v /run/udev:/run/udev -v .:/data -w /data \
         quay.io/coreos/coreos-installer:release \
         iso customize -f --network-nmstate network_config.yaml rhcos-live.iso
+    podman run --privileged --pull always --rm \
+        -v /dev:/dev -v /run/udev:/run/udev -v $PWD:/data \
+        -w /data quay.io/coreos/coreos-installer:release \
+        iso ignition embed -fi generated/install-${1}/bootstrap-in-place-for-live-iso.ign rhcos-live.iso
 fi
